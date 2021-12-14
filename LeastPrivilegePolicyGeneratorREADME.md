@@ -17,8 +17,9 @@ How to use:
 
 WARNINGS:
 1. While there is nothing stopping you, please do not use this in a Production environment. While this may be a more efficient way to make least privilege IAM policies, it is not the most secure because every action adds API calls to the IAM policy. It is best to use this in a Test/Development environment, review the IAM policy, then transfer the IAM policy to Production.
-2. Use written procedures. If you don't have formalized procedures then it will be difficult to validate that the generated policy is least privilege because it only has the necessary API calls.
-3. Review the final IAM policy! Even opening the EC2 dashboard makes over a dozen API calls as AWS attempts to populate the dashboard. All of those denied calls are automatically added to the IAM policy. Many of these may be excessive. Review the final IAM policy and remove these excessive API calls.
+2. Secure the IAM user as you would any other for your organization.
+3. Use written procedures. If you don't have formalized procedures then it will be difficult to validate that the generated policy is least privilege because it only has the necessary API calls.
+4. Review the final IAM policy! Even opening the EC2 dashboard makes over a dozen API calls as AWS attempts to populate the dashboard. All of those denied calls are automatically added to the IAM policy. Many of these may be excessive. Review the final IAM policy and remove these excessive API calls.
 
 Thoughts on the Least Privilege Policy Generator:
 1. Cloudwatch Log Groups are not fast. Expect to wait a few minutes before each action's API calls are added to the IAM policy. This is still likely faster than manually going through a list of API calls for each service.
