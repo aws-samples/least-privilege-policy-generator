@@ -5,7 +5,7 @@ Least Privilege Policy Generator is a CloudFormation Template that, when built i
 The value of this is when generating least privilege IAM policies it is recommended to start with nothing and add only the API calls that are needed. Often the recommended way to do this is to sit down and go over each service and API call to determine what is needed. This is slow and prone to human error because even the most knowledgeable AWS user doesn't know the thousands of API calls across the hundreds of AWS services. With Least Privilege Policy Generator, the end user can log in to the user, follow their written processes, and the policy generates itself.
 
 How to use:
-1. Download the CloudFormation template
+1. Download the CloudFormation template: LeastPrivilegePolicyGenerator.yml
 2. In the AWS Console or AWS CLI, using CloudFormation, upload the template to create the resources
 3. Add in the appropriate log on credentials to the IAM user
 4. Log in to the user
