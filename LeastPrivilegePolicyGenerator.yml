@@ -1,0 +1,258 @@
+#Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#SPDX-License-Identifier: MIT-0
+#
+#Permission is hereby granted, free of charge, to any person obtaining a copy of this
+#software and associated documentation files (the "Software"), to deal in the Software
+#without restriction, including without limitation the rights to use, copy, modify,
+#merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+#permit persons to whom the Software is furnished to do so.
+#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+#INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+#PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+#HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+#OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+#SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Description: >-
+  AWS CloudFormation Sample Template Least Privilege Policy Generator. **WARNING** This
+  template creates a CloudTrail, CloudWatch Log Group, IAM user, IAM Policies, and a Lambda. 
+  You will be billed for the AWS resources used if you create a stack from this template.
+Resources:
+  LPCloudTrail:
+    Type: "AWS::CloudTrail::Trail"
+    Properties:
+      TrailName: "LpCloudTrail"
+      IsLogging: true
+      EnableLogFileValidation: true
+      EventSelectors:
+        - IncludeManagementEvents: true
+          ReadWriteType: "All"
+      IsMultiRegionTrail: true
+      IncludeGlobalServiceEvents: true
+      S3BucketName:
+        Ref: "LPS3Bucket"
+      CloudWatchLogsLogGroupArn:
+        Fn::GetAtt:
+          - "CloudWatchLogGroup"
+          - "Arn"
+      CloudWatchLogsRoleArn:
+        Fn::GetAtt:
+          - "CwLogIAMRole"
+          - "Arn"
+    DependsOn: "LPS3BucketPolicy"
+  LPS3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties: {}
+  LPS3BucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket:
+        Ref: "LPS3Bucket"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "AWSCloudTrailBucketPermissionsCheck"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "cloudtrail.amazonaws.com"
+            Action: "s3:GetBucketAcl"
+            Resource:
+              Fn::GetAtt:
+                - "LPS3Bucket"
+                - "Arn"
+          - Sid: " AWSConfigBucketDelivery"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "cloudtrail.amazonaws.com"
+            Action: "s3:PutObject"
+            Resource:
+              Fn::Join:
+                - ""
+                -
+                  - Fn::GetAtt:
+                      - "LPS3Bucket"
+                      - "Arn"
+                  - "/AWSLogs/*"
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: "bucket-owner-full-control"
+  CloudWatchLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "LPCloudTrailLogs"
+  CwLogIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: ""
+            Effect: "Allow"
+            Principal:
+              Service: "cloudtrail.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: "allow-access-to-cw-logs"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'lambda:InvokeFunction'
+                Resource: "*"
+  LogGroupSubFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !GetAtt LPUpdateIAMPermissionLambda.Arn
+      FilterPattern: '{($.errorCode="*UnauthorizedOperation") || ($.errorCode="AccessDenied*")}'
+      LogGroupName: !Ref CloudWatchLogGroup
+  LambdaCloudwatchInvokePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn: LPUpdateIAMPermissionLambda
+    Properties:
+      FunctionName: LPUpdateIAMPermissionLambda
+      Principal: "logs.amazonaws.com"
+      Action: "lambda:InvokeFunction"
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn:
+          Fn::GetAtt:
+          - "CloudWatchLogGroup"
+          - "Arn"
+  LPIAMUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: LPIAMUser
+      ManagedPolicyArns: 
+      - !Ref LPIAMPolicy
+  LPIAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: LPIAMPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - ec2:DescribeInstances
+          Resource:
+          - '*'
+  LPUpdateIAMPermissionLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LPUpdateIAMPermissionLambdaRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: 
+             - sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'iam:GetPolicy'
+                  - 'iam:GetPolicyVersion'
+                  - 'iam:CreatePolicyVersion'
+                  - 'iam:DeletePolicyVersion'
+                  - 'iam:ListPolicyVersions'
+                Resource: '*'  
+  LPUpdateIAMPermissionLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: "This Lambda triggers on the IAM use being denied an API action and grants them that permission"
+      FunctionName: LPUpdateIAMPermissionLambda
+      Role: !GetAtt LPUpdateIAMPermissionLambdaRole.Arn
+      Runtime: python3.8
+      Handler: index.lambda_handler
+      Code: 
+        ZipFile: |
+          import boto3, json, base64, os, gzip
+          from io import BytesIO
+
+          def lambda_handler(event, context):
+
+            lambda_function_arn = context.invoked_function_arn
+            aws_account_id = lambda_function_arn.split(":")[4]
+
+            userArn = "arn:aws:iam::" + aws_account_id + ":user/LPIAMUser"
+            policyArn = "arn:aws:iam::" + aws_account_id + ":policy/LPIAMPolicy"
+
+            print(event)
+              
+            cw_data = str(event['awslogs']['data'])
+            cw_logs = gzip.GzipFile(fileobj=BytesIO(base64.b64decode(cw_data, validate=True))).read()
+            log_events = json.loads(cw_logs)
+              
+            print(log_events)
+              
+            APICallsToAdd = []
+              
+            print(log_events['logEvents'][0]['message'])
+              
+            for event in log_events['logEvents']:
+              deniedEvent = json.loads(event['message'])
+                  
+              if deniedEvent['userIdentity']['arn'] == userArn:
+              
+                source = deniedEvent['eventSource']
+                call = deniedEvent['eventName']
+                      
+                sepService = source.partition('.')
+                service = sepService[0]
+                      
+                APICall = service + ':' + call
+                if APICall not in APICallsToAdd:
+                  print("addingAPICall " + APICall)
+                  APICallsToAdd.append(APICall)
+              
+            if APICallsToAdd: 
+              # Create IAM client
+              client = boto3.client('iam')
+              resource = boto3.resource('iam')
+                      
+              policy = resource.Policy(policyArn)
+              policyJson = policy.default_version.document
+                      
+              print(policyJson)
+                
+              for APICalls in APICallsToAdd:
+                if APICalls not in policyJson['Statement'][0]['Action']:
+                  policyJson['Statement'][0]['Action'].append(APICalls)
+                              
+              policyJson['Statement'][0]['Action'].sort()
+                      
+              print(policyJson)
+              
+              response = client.list_policy_versions(
+                PolicyArn= policyArn
+                )
+              #print(response['Versions'])
+              #print(len(response['Versions']))
+                      
+              if len(response['Versions']) > 4:
+                oldestVersion = response['Versions'][4]['VersionId']
+                print(oldestVersion)
+                response = client.delete_policy_version(
+                  PolicyArn= policyArn,
+                  VersionId= oldestVersion
+                )
+                      
+              response = policy.create_version(
+                PolicyArn= policyArn,
+                PolicyDocument= json.dumps(policyJson),
+                SetAsDefault= True
+                )
