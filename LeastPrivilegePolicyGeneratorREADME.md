@@ -8,8 +8,8 @@ How to use:
 1. Download the CloudFormation template
 2. In the AWS Console or AWS CLI, using CloudFormation, upload the template to create the resources
 3. Add in the appropriate log on credentials to the IAM user
-4. Log in to the use
-5. Using your written processes, take the actions specified one at a time.
+4. Log in to the user
+5. Using your written procedures, take the actions specified one at a time.
 6. Moving the events from CloudTrail to CloudWatch and finally to the Lambda will take a few minutes. Monitor the Lambda's CLoudWatch Log Group or the IAM Policy to know when the changes have been made.
 7. Take the next action
 8. Repeat until all actions are taken
