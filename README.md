@@ -6,25 +6,25 @@ The value of this is when generating least privilege IAM policies it is recommen
 
 How to use:
 1. Download the CloudFormation template: LeastPrivilegePolicyGenerator.yml
-2. In the AWS Console or AWS CLI, using CloudFormation, upload the template to create the resources
-3. Add in the appropriate log on credentials to the IAM user
-4. Log in to the user
+2. In the AWS Console or AWS CLI, using CloudFormation, upload the template to create the resources.
+3. Add in the appropriate log on credentials to the IAM user.
+4. Log in to the user.
 5. Using your written procedures, take the actions specified one at a time.
 6. Moving the events from CloudTrail to CloudWatch and finally to the Lambda will take a few minutes. Monitor the Lambda's CLoudWatch Log Group or the IAM Policy to know when the changes have been made.
-7. Take the next action
-8. Repeat until all actions are taken
-9. Review the final IAM Policy to excessive API calls
+7. Take the next action.
+8. Repeat until all actions are taken.
+9. Review the final IAM Policy to remove excessive API calls.
+10. The policy is the final product. Copy and save it before you delete the CloudFormation Template.
 
 WARNINGS:
 1. While there is nothing stopping you, please do not use this in a Production environment. While this may be a more efficient way to make least privilege IAM policies, it is not the most secure because every action adds API calls to the IAM policy. It is best to use this in a Test/Development environment, review the IAM policy, then transfer the IAM policy to Production.
 2. Secure the IAM user as you would any other for your organization.
-3. Use written procedures. If you don't have formalized procedures then it will be difficult to validate that the generated policy is least privilege because it only has the necessary API calls.
-4. Review the final IAM policy! Even opening the EC2 dashboard makes over a dozen API calls as AWS attempts to populate the dashboard. All of those denied calls are automatically added to the IAM policy. Many of these may be excessive. Review the final IAM policy and remove these excessive API calls.
+3. Review the final IAM policy! Even opening the EC2 dashboard makes over a dozen API calls as AWS attempts to populate the dashboard. All of those denied calls are automatically added to the IAM policy. Many of these may be excessive. Review the final IAM policy and remove these excessive API calls.
 
 Thoughts on the Least Privilege Policy Generator:
 1. Cloudwatch Log Groups are not fast. Expect to wait a few minutes before each action's API calls are added to the IAM policy. This is still likely faster than manually going through a list of API calls for each service.
 2. It would have likely been faster to use Amazon EventBridge. However, many events that would need to be added to a least privilege policy aren't processed by Amazon EventBridge: "All events that are delivered by CloudTrail have AWS API Call via CloudTrail as the value for detail-type. **Events from API actions that start with the keywords List, Get, or Describe aren't processed by EventBridge**, with the exception of events from the following AWS STS actions: GetFederationToken, GetSessionToken" (Source: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-ct-api-tutorial.html)
-3. Another way this may be improved upon is to add a way to send an email for each API call to verify that it should be included. It is possible, but out of the scope of this version of Least Privilege Policy Generator. An issue with this addition is the end user may not know what the API call is, and the large number of API calls that can happen at once.
+
 
 ## Security
 
