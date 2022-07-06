@@ -16,13 +16,17 @@
 
 Description: >-
   AWS CloudFormation Sample Template Least Privilege Policy Generator. **WARNING** This
-  template creates a CloudTrail, CloudWatch Log Group, IAM user, IAM Policies, and a Lambda. 
+  template creates a CloudTrail, CloudWatch Log Group, IAM role, IAM Policies, and a Lambda. 
   You will be billed for the AWS resources used if you create a stack from this template.
+Parameters:
+  AssumeRoleARN:
+    Type: String
+    Description: "Arn of the role that will assume the LPPG role"
 Resources:
-  LPCloudTrail:
+  LPPGCloudTrail:
     Type: "AWS::CloudTrail::Trail"
     Properties:
-      TrailName: "LpCloudTrail"
+      TrailName: "LPPGCloudTrail"
       IsLogging: true
       EnableLogFileValidation: true
       EventSelectors:
@@ -31,24 +35,24 @@ Resources:
       IsMultiRegionTrail: true
       IncludeGlobalServiceEvents: true
       S3BucketName:
-        Ref: "LPS3Bucket"
+        Ref: "LPPGS3Bucket"
       CloudWatchLogsLogGroupArn:
         Fn::GetAtt:
           - "CloudWatchLogGroup"
           - "Arn"
       CloudWatchLogsRoleArn:
         Fn::GetAtt:
-          - "CwLogIAMRole"
+          - "LPPGCwLogIAMRole"
           - "Arn"
-    DependsOn: "LPS3BucketPolicy"
-  LPS3Bucket:
+    DependsOn: "LPPGS3BucketPolicy"
+  LPPGS3Bucket:
     Type: "AWS::S3::Bucket"
     Properties: {}
-  LPS3BucketPolicy:
+  LPPGS3BucketPolicy:
     Type: "AWS::S3::BucketPolicy"
     Properties:
       Bucket:
-        Ref: "LPS3Bucket"
+        Ref: "LPPGS3Bucket"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -60,7 +64,7 @@ Resources:
             Action: "s3:GetBucketAcl"
             Resource:
               Fn::GetAtt:
-                - "LPS3Bucket"
+                - "LPPGS3Bucket"
                 - "Arn"
           - Sid: " AWSConfigBucketDelivery"
             Effect: "Allow"
@@ -73,7 +77,7 @@ Resources:
                 - ""
                 -
                   - Fn::GetAtt:
-                      - "LPS3Bucket"
+                      - "LPPGS3Bucket"
                       - "Arn"
                   - "/AWSLogs/*"
             Condition:
@@ -82,8 +86,8 @@ Resources:
   CloudWatchLogGroup:
     Type: "AWS::Logs::LogGroup"
     Properties:
-      LogGroupName: "LPCloudTrailLogs"
-  CwLogIAMRole:
+      LogGroupName: "LPPGCloudTrailLogs"
+  LPPGCwLogIAMRole:
     Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
@@ -108,14 +112,14 @@ Resources:
   LogGroupSubFilter:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
-      DestinationArn: !GetAtt LPUpdateIAMPermissionLambda.Arn
+      DestinationArn: !GetAtt LPPGUpdateIAMPermissionLambda.Arn
       FilterPattern: '{($.errorCode="*UnauthorizedOperation") || ($.errorCode="AccessDenied*")}'
       LogGroupName: !Ref CloudWatchLogGroup
   LambdaCloudwatchInvokePermission:
     Type: AWS::Lambda::Permission
-    DependsOn: LPUpdateIAMPermissionLambda
+    DependsOn: LPPGUpdateIAMPermissionLambda
     Properties:
-      FunctionName: LPUpdateIAMPermissionLambda
+      FunctionName: LPPGUpdateIAMPermissionLambda
       Principal: "logs.amazonaws.com"
       Action: "lambda:InvokeFunction"
       SourceAccount: !Ref AWS::AccountId
@@ -123,16 +127,26 @@ Resources:
           Fn::GetAtt:
           - "CloudWatchLogGroup"
           - "Arn"
-  LPIAMUser:
-    Type: AWS::IAM::User
+  LPPGIAMRole:
+    Type: AWS::IAM::Role
     Properties:
-      UserName: LPIAMUser
+      RoleName: LPPGIAMRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              AWS:
+                - !Ref AssumeRoleARN
+            Action: 
+              - "sts:AssumeRole"
       ManagedPolicyArns: 
-      - !Ref LPIAMPolicy
-  LPIAMPolicy:
+      - !Ref LPPGIAMPolicy
+  LPPGIAMPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: LPIAMPolicy
+      ManagedPolicyName: LPPGIAMPolicy
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -141,10 +155,10 @@ Resources:
           - ec2:DescribeInstances
           Resource:
           - '*'
-  LPUpdateIAMPermissionLambdaRole:
+  LPPGUpdateIAMPermissionLambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: LPUpdateIAMPermissionLambdaRole
+      RoleName: LPPGUpdateIAMPermissionLambdaRole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -170,12 +184,12 @@ Resources:
                   - 'iam:DeletePolicyVersion'
                   - 'iam:ListPolicyVersions'
                 Resource: '*'  
-  LPUpdateIAMPermissionLambda:
+  LPPGUpdateIAMPermissionLambda:
     Type: AWS::Lambda::Function
     Properties:
-      Description: "This Lambda triggers on the IAM use being denied an API action and grants them that permission"
-      FunctionName: LPUpdateIAMPermissionLambda
-      Role: !GetAtt LPUpdateIAMPermissionLambdaRole.Arn
+      Description: "This Lambda triggers on the LPPGIAMRole being denied an API action and grants it that permission"
+      FunctionName: LPPGUpdateIAMPermissionLambda
+      Role: !GetAtt LPPGUpdateIAMPermissionLambdaRole.Arn
       Runtime: python3.8
       Handler: index.lambda_handler
       Code: 
@@ -188,8 +202,8 @@ Resources:
             lambda_function_arn = context.invoked_function_arn
             aws_account_id = lambda_function_arn.split(":")[4]
 
-            userArn = "arn:aws:iam::" + aws_account_id + ":user/LPIAMUser"
-            policyArn = "arn:aws:iam::" + aws_account_id + ":policy/LPIAMPolicy"
+            roleArn = "arn:aws:iam::" + aws_account_id + ":role/LPPGIAMRole"
+            policyArn = "arn:aws:iam::" + aws_account_id + ":policy/LPPGIAMPolicy"
 
             print(event)
               
@@ -206,7 +220,7 @@ Resources:
             for event in log_events['logEvents']:
               deniedEvent = json.loads(event['message'])
                   
-              if deniedEvent['userIdentity']['arn'] == userArn:
+              if deniedEvent['userIdentity']['sessionContext']['sessionIssuer']['arn'] == roleArn:
               
                 source = deniedEvent['eventSource']
                 call = deniedEvent['eventName']
