@@ -24,7 +24,7 @@ WARNINGS:
 
 Thoughts on the Least Privilege Policy Generator:
 1. Cloudwatch Log Groups are not fast. Expect to wait a few minutes before each action's API calls are added to the IAM policy. This is still likely faster than manually going through a list of API calls for each service.
-2. It would have likely been faster to use Amazon EventBridge. However, many events that would need to be added to a least privilege policy aren't processed by Amazon EventBridge: "All events that are delivered by CloudTrail have AWS API Call via CloudTrail as the value for detail-type. **Events from API actions that start with the keywords List, Get, or Describe aren't processed by EventBridge**, with the exception of events from the following AWS STS actions: GetFederationToken, GetSessionToken" (Source: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-ct-api-tutorial.html)
+2. It would have likely been faster to use Amazon EventBridge. However, many events that would need to be added to a least privilege policy aren't processed by Amazon EventBridge: "All events that are delivered by CloudTrail have AWS API Call via CloudTrail as the value for detail-type. **Events from API actions that start with the keywords List, Get, or Describe aren't processed by EventBridge**, with the exception of events from the following AWS STS actions: GetFederationToken, GetSessionToken" (Source: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-service-event.html)
 
 
 ## Security
