@@ -7,20 +7,20 @@ The value of this is when generating least privilege IAM policies it is recommen
 How to use:
 1. Download the CloudFormation template: LeastPrivilegePolicyGenerator.yml
 2. In the AWS Console or AWS CLI, using CloudFormation, upload the template to create the resources.
-3. Add in the appropriate log on credentials to the IAM user.
-4. Log in to the user.
-5. Using your written procedures, take the actions specified one at a time.
-6. Moving the events from CloudTrail to CloudWatch and finally to the Lambda will take a few minutes. Monitor the Lambda's CLoudWatch Log Group or the IAM Policy to know when the changes have been made.
-7. Take the next action.
-8. Repeat until all actions are taken.
-9. Review the final IAM Policy to remove excessive API calls.
-10. The policy is the final product. Copy and save it before you delete the CloudFormation Template.
+3. In the parameters step, paste the ARN of the role that will be used when logged in to AWS.
+4. Log in to AWS with the role that was selected.
+5. Asssume the LPPG role.
+6. Using your written procedures, take the actions specified one at a time.
+7. Moving the events from CloudTrail to CloudWatch and finally to the Lambda will take a few minutes. Monitor the Lambda's CLoudWatch Log Group or the IAM Policy to know when the changes have been made.
+8. Take the next action.
+9. Repeat until all actions are taken.
+10. Review the final IAM Policy to remove excessive API calls.
+11. The policy is the final product. Copy and save it before you delete the CloudFormation Template.
 
 WARNINGS:
 1. While there is nothing stopping you, please do not use this in a Production environment. While this may be a more efficient way to make least privilege IAM policies, it is not the most secure because every action adds API calls to the IAM policy. It is best to use this in a Test/Development environment, review the IAM policy, then transfer the IAM policy to Production.
-2. Secure the IAM user as you would any other for your organization.
-3. Review the final IAM policy! Even opening the EC2 dashboard makes over a dozen API calls as AWS attempts to populate the dashboard. All of those denied calls are automatically added to the IAM policy. Many of these may be excessive. Review the final IAM policy and remove these excessive API calls.
-4. The deletion of the CloudFormation Template may not delete all created resources. It may be required to delete the CLoudFormation multiple times or manually deleting the created resources.
+2. Review the final IAM policy! Even opening the EC2 dashboard makes over a dozen API calls as AWS attempts to populate the dashboard. All of those denied calls are automatically added to the IAM policy. Many of these may be excessive. Review the final IAM policy and remove these excessive API calls.
+3. The deletion of the CloudFormation Template may not delete all created resources. It may be required to delete the CLoudFormation multiple times or manually deleting the created resources.
 
 Thoughts on the Least Privilege Policy Generator:
 1. Cloudwatch Log Groups are not fast. Expect to wait a few minutes before each action's API calls are added to the IAM policy. This is still likely faster than manually going through a list of API calls for each service.
